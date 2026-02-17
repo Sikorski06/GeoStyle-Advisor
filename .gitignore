@@ -1,3 +1,8 @@
+#venv
+venv/
+.venv/
+env/
+
 # Ignoruj dane, ale zachowaj foldery
 data/raw/*
 data/processed/*

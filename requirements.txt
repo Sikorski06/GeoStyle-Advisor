@@ -1,13 +1,10 @@
-#Core
-streamlit>=1.32.0
-opencv-python-headless>=4.9.0
-mediapipe>=0.10.32
-numpy>=2.2.0
-pandas>=2.2.0
+# Core - Wersje sztywne dla stabilności
+numpy<2.0.0
+mediapipe>=0.10.9
+opencv-python-headless
 
-#Analiza danych
-matplotlib>=3.8.0
-notebook>=7.1.1
-
-# Testowanie
-pytest>=8.1.1
+# Frontend & Utils
+streamlit
+pandas
+matplotlib
+Pillow
