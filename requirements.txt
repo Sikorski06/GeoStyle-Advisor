@@ -1,6 +1,6 @@
 # Core - Wersje sztywne dla stabilności
-numpy<2.0.0
-mediapipe>=0.10.9
+numpy==1.26.4
+mediapipe==0.10.9
 opencv-python-headless
 
 # Frontend & Utils

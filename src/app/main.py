@@ -6,254 +6,281 @@ import os
 import numpy as np
 import time
 
-# Konfiguracja ścieżek
 sys.path.append(os.path.join(os.getcwd(), 'src'))
-
 from core.geometry import GeometryEngine
 from core.recommender import HairstyleRecommender
 
 # --- KONFIGURACJA STRONY ---
-st.set_page_config(page_title="GeoStyle Advisor", page_icon="✂️", layout="centered")
+st.set_page_config(page_title="GeoStyle Pro", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS: POPRAWA UI ---
+# --- STYLIZACJA (GLASSMORPHISM CSS) ---
 st.markdown("""
-    <style>
+<style>
+    /* Główne tło */
     .stApp {
-        background-color: #0E1117;
+        background: radial-gradient(circle at 10% 20%, rgb(17, 24, 39) 0%, rgb(10, 10, 10) 90%);
+        color: #ffffff;
     }
-    .main-header {
-        font-size: 2.5rem;
-        color: #FAFAFA;
+    
+    /* Nagłówek */
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: -webkit-linear-gradient(45deg, #FF4B4B, #FF914D);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
-        font-weight: 700;
-        margin-bottom: 1rem;
+        padding-top: 1rem;
+        margin-bottom: 0.5rem;
     }
-    </style>
+    .hero-subtitle {
+        text-align: center;
+        color: #9CA3AF;
+        font-size: 1.2rem;
+        margin-bottom: 3rem;
+    }
+
+    /* Karty (Glassmorphism) */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Wyniki */
+    .shape-badge {
+        background-color: #FF4B4B;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    .big-metric {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    
+    /* Fryzury */
+    .hair-pill {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 20px;
+        border-radius: 12px;
+        margin: 5px;
+        display: inline-block;
+        transition: all 0.3s ease;
+    }
+    .hair-pill:hover {
+        background: rgba(255, 75, 75, 0.2);
+        border-color: #FF4B4B;
+    }
+</style>
 """, unsafe_allow_html=True)
 
+# --- INICJALIZACJA ---
 @st.cache_resource
-def init_engines():
-    return GeometryEngine(), HairstyleRecommender()
+def init(): return GeometryEngine(), HairstyleRecommender()
+engine, recommender = init()
 
-try:
-    engine, recommender = init_engines()
-except FileNotFoundError:
-    st.error("CRITICAL ERROR: Nie znaleziono plików konfiguracyjnych. Uruchom najpierw `analyze_data.py`.")
-    st.stop()
+# Stany
+if 'stage' not in st.session_state: st.session_state.stage = "IDLE"
+if 'data' not in st.session_state: st.session_state.data = None
+if 'gender' not in st.session_state: st.session_state.gender = "Female"
 
-# --- STAN APLIKACJI ---
-if 'scan_stage' not in st.session_state:
-    st.session_state.scan_stage = "IDLE"
-if 'scan_data' not in st.session_state:
-    st.session_state.scan_data = {"front": None, "left": None, "right": None}
-if 'final_shape' not in st.session_state:
-    st.session_state.final_shape = None
-if 'hold_start_time' not in st.session_state:
-    st.session_state.hold_start_time = None
-
-# --- MEDIAPIPE ---
+# MediaPipe
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1)
 
-face_mesh = mp_face_mesh.FaceMesh(
-    static_image_mode=False,
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.6,
-    min_tracking_confidence=0.6
-)
+# Funkcja rysująca Overlay na wideo
+def draw_hud(img, text, progress=0.0, is_active=False):
+    h, w, _ = img.shape
+    
+    # Celownik (Owal)
+    cx, cy = w//2, h//2
+    # Idealne proporcje do wpasowania twarzy
+    ax, ay = int(w/3.8), int(h/2.2)
+    
+    color = (0, 255, 0) if is_active else (150, 150, 150)
+    thickness = 2 if is_active else 1
+    
+    # Owal
+    cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 200, color, thickness)
+    # Krzyż celowniczy
+    cv2.line(img, (cx-10, cy), (cx+10, cy), color, 1)
+    cv2.line(img, (cx, cy-10), (cx, cy+10), color, 1)
 
-def get_head_pose(landmarks):
-    """Zwraca stosunek obrotu głowy (0.0 - 1.0)."""
-    nose = landmarks[1]
-    left_edge = landmarks[234]
-    right_edge = landmarks[454]
-    dist_total = abs(right_edge.x - left_edge.x)
-    dist_nose_left = abs(nose.x - left_edge.x)
-    return dist_nose_left / dist_total if dist_total != 0 else 0.5
-
-def draw_overlay(image, text, progress=0.0):
-    """Rysuje interfejs (tekst, pasek, owal pomocniczy) na wideo."""
-    h, w, _ = image.shape
+    # Panel informacyjny na górze
+    cv2.rectangle(img, (0, 0), (w, 60), (0,0,0), -1)
+    cv2.putText(img, text.upper(), (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
     
-    # 1. Owal Pomocniczy (Celownik)
-    # Rysujemy go na środku ekranu, żebyś wiedział gdzie ustawić głowę
-    center_x, center_y = int(w / 2), int(h / 2)
-    axes_x, axes_y = int(w / 3.2), int(h / 2.0) # Proporcje typowej twarzy
-    
-    # Rysujemy przerywany lub półprzezroczysty owal (symulacja kolorem szarym)
-    cv2.ellipse(image, (center_x, center_y), (axes_x, axes_y), 0, 0, 360, (200, 200, 200), 2)
-    
-    # 2. Instrukcje tekstowe
-    # Czarne tło dla czytelności
-    cv2.rectangle(image, (0, 0), (w, 70), (0, 0, 0), -1)
-    cv2.putText(image, text, (20, 45), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 2)
-    
-    # 3. Pasek Postępu
+    # Pasek postępu
     if progress > 0:
-        bar_width = int(w * progress)
-        bar_color = (0, int(255 * progress), 255 - int(255 * progress)) # Gradient
-        cv2.rectangle(image, (0, 65), (bar_width, 70), bar_color, -1)
+        cv2.rectangle(img, (0, 56), (int(w*progress), 60), (0, 255, 0), -1)
 
-# --- UI: HEADER ---
-st.markdown('<p class="main-header">✂️ GeoStyle 3D Scanner</p>', unsafe_allow_html=True)
+# --- LAYOUT APLIKACJI ---
 
-# --- LOGIKA SKANERA ---
-scan_container = st.empty()
+st.markdown('<div class="hero-title">GeoStyle Pro</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-subtitle">Profesjonalna analiza biometryczna twarzy</div>', unsafe_allow_html=True)
 
-# PRZYCISK STARTOWY
-if st.session_state.scan_stage == "IDLE":
+# 1. EKRAN STARTOWY
+if st.session_state.stage == "IDLE":
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.info("Ustaw twarz wewnątrz szarego owalu i kliknij Start.")
-        if st.button("🚀 ROZPOCZNIJ NOWY SKAN", use_container_width=True, key="start_btn"):
-            st.session_state.scan_stage = "FRONT"
-            st.session_state.hold_start_time = None
+        st.markdown("""
+        <div class="glass-card" style="text-align: center;">
+            <h3>🎥 Rozpocznij sesję</h3>
+            <p style="color: #bbb;">Upewnij się, że masz dobre oświetlenie i patrzysz wprost w kamerę.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Wybór płci PRZED skanem (wpływa na algorytm geometrii)
+        g = st.selectbox("Wybierz profil analizy:", ["Kobieta", "Mężczyzna"], index=0)
+        st.session_state.gender = "Female" if g == "Kobieta" else "Male"
+        
+        if st.button("URUCHOM SYSTEM", use_container_width=True, type="primary"):
+            st.session_state.stage = "FRONT"
             st.rerun()
 
-# PĘTLA WIDEO
-if st.session_state.scan_stage in ["FRONT", "LEFT", "RIGHT"]:
-    cap = cv2.VideoCapture(0)
-    stop_col1, stop_col2 = st.columns([1, 6])
-    with stop_col1:
-        stop_button = st.button("Anuluj", key="stop_btn")
+# 2. EKRAN SKANOWANIA
+elif st.session_state.stage in ["FRONT", "LEFT", "RIGHT"]:
+    col_main, col_side = st.columns([3, 1])
     
-    video_window = st.empty()
-    
-    while cap.isOpened() and not stop_button:
-        ret, frame = cap.read()
-        if not ret: break
-        
-        frame = cv2.flip(frame, 1)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = face_mesh.process(rgb)
-        
-        overlay_text = ""
-        progress = 0.0
-        is_position_correct = False
-        
-        if results.multi_face_landmarks:
-            landmarks = results.multi_face_landmarks[0].landmark
-            yaw = get_head_pose(landmarks)
-            
-            # --- ULEPSZONE RYSOWANIE SIATKI ---
-            # 1. Rysujemy gęstą siatkę (Tesselation) cienką linią
-            mp_drawing.draw_landmarks(
-                image=frame,
-                landmark_list=results.multi_face_landmarks[0],
-                connections=mp_face_mesh.FACEMESH_TESSELATION,
-                landmark_drawing_spec=None,
-                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
-            )
-            
-            # 2. Rysujemy KONTUR TWARZY (Face Oval) grubszą linią
-            # To pozwoli Ci zobaczyć, gdzie model widzi Twoje czoło i brodę
-            mp_drawing.draw_landmarks(
-                image=frame,
-                landmark_list=results.multi_face_landmarks[0],
-                connections=mp_face_mesh.FACEMESH_FACE_OVAL,
-                landmark_drawing_spec=None,
-                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 255), thickness=3)
-            )
+    with col_side:
+        st.markdown(f"""
+        <div class="glass-card">
+            <h4>Instrukcja</h4>
+            <p>1. Umieść twarz w owalu.</p>
+            <p>2. Wykonaj polecenia wyświetlane na wideo.</p>
+            <p>3. Utrzymaj pozycję przez 3 sekundy.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Przerwij", use_container_width=True):
+            st.session_state.stage = "IDLE"; st.rerun()
 
-            # Logika Stanów
-            current_stage = st.session_state.scan_stage
+    with col_main:
+        # Pętla wideo
+        placeholder = st.empty()
+        cap = cv2.VideoCapture(0)
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret: break
             
-            if current_stage == "FRONT":
-                if 0.45 < yaw < 0.55:
-                    overlay_text = "Trzymaj prosto (3s)..."
-                    is_position_correct = True
-                else:
-                    overlay_text = "Ustaw twarz PROSTO"
-                    is_position_correct = False
-                    
-            elif current_stage == "LEFT":
-                if yaw > 0.65:
-                    overlay_text = "Trzymaj lewy profil..."
-                    is_position_correct = True
-                else:
-                    overlay_text = "Obróć w LEWO"
-                    is_position_correct = False
+            frame = cv2.flip(frame, 1)
+            results = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             
-            elif current_stage == "RIGHT":
-                if yaw < 0.35:
-                    overlay_text = "Trzymaj prawy profil..."
-                    is_position_correct = True
-                else:
-                    overlay_text = "Obróć w PRAWO"
-                    is_position_correct = False
+            status_text = "Szukam twarzy..."
+            progress = 0.0
+            is_locked = False
+            
+            if results.multi_face_landmarks:
+                landmarks = results.multi_face_landmarks[0].landmark
+                # Rysowanie siatki (Tesselation) dla efektu Sci-Fi
+                mp_drawing.draw_landmarks(frame, results.multi_face_landmarks[0], 
+                                          mp_face_mesh.FACEMESH_TESSELATION, None,
+                                          mp_drawing.DrawingSpec(color=(255,255,255), thickness=1, circle_radius=0))
 
-            # Timer
-            if is_position_correct:
-                if st.session_state.hold_start_time is None:
-                    st.session_state.hold_start_time = time.time()
+                # Logika Yaw (Obrót głowy)
+                # Obliczamy relację nosa do krawędzi twarzy
+                nose_x = landmarks[1].x
+                left_x = landmarks[234].x
+                right_x = landmarks[454].x
+                yaw_ratio = abs(nose_x - left_x) / abs(right_x - left_x)
                 
-                elapsed = time.time() - st.session_state.hold_start_time
-                progress = min(elapsed / 3.0, 1.0)
+                target = st.session_state.stage
                 
-                if elapsed >= 3.0:
-                    if current_stage == "FRONT":
-                        st.session_state.scan_data["front"] = landmarks
-                        st.session_state.scan_stage = "LEFT"
-                    elif current_stage == "LEFT":
-                        st.session_state.scan_data["left"] = landmarks
-                        st.session_state.scan_stage = "RIGHT"
-                    elif current_stage == "RIGHT":
-                        st.session_state.scan_data["right"] = landmarks
-                        st.session_state.scan_stage = "ANALYZING"
+                # Warunki pozycji (Tolerancja 10%)
+                if target == "FRONT":
+                    is_locked = 0.45 < yaw_ratio < 0.55
+                    status_text = "Stabilizuj: FRONT" if is_locked else "Ustaw głowę PROSTO"
+                elif target == "LEFT":
+                    is_locked = yaw_ratio > 0.65
+                    status_text = "Stabilizuj: PROFIL LEWY" if is_locked else "Obroc w Prawo"
+                elif target == "RIGHT":
+                    is_locked = yaw_ratio < 0.35
+                    status_text = "Stabilizuj: PROFIL PRAWY" if is_locked else "Obróć w Lewo"
+
+                # Timer (3 sekundy)
+                if is_locked:
+                    if 'start_hold' not in st.session_state: st.session_state.start_hold = time.time()
+                    elapsed = time.time() - st.session_state.start_hold
+                    progress = min(elapsed / 2.5, 1.0) # 2.5s dla lepszego UX
                     
-                    st.session_state.hold_start_time = None
-                    cap.release()
-                    st.rerun()
-            else:
-                st.session_state.hold_start_time = None
-                progress = 0.0
+                    if elapsed >= 2.5:
+                        if target == "FRONT":
+                            st.session_state.data = landmarks # Zapisujemy punkty frontowe do analizy
+                            st.session_state.stage = "LEFT"
+                        elif target == "LEFT":
+                            st.session_state.stage = "RIGHT"
+                        else:
+                            st.session_state.stage = "RESULT"
+                        
+                        if 'start_hold' in st.session_state: del st.session_state.start_hold
+                        cap.release()
+                        st.rerun()
+                else:
+                    if 'start_hold' in st.session_state: del st.session_state.start_hold
 
-        else:
-            overlay_text = "Nie wykryto twarzy"
-            st.session_state.hold_start_time = None
+            draw_hud(frame, status_text, progress, is_locked)
+            placeholder.image(frame, channels="BGR", use_container_width=True)
 
-        draw_overlay(frame, overlay_text, progress)
-        video_window.image(frame, channels="BGR")
-
-    cap.release()
-
-# --- ANALIZA ---
-if st.session_state.scan_stage == "ANALYZING":
-    with st.spinner("Przetwarzanie geometrii 3D..."):
-        time.sleep(1)
-        front_landmarks = st.session_state.scan_data["front"]
-        shape, metrics = engine.get_face_shape(front_landmarks)
-        st.session_state.final_shape = (shape, metrics)
-        st.session_state.scan_stage = "RESULT"
-        st.rerun()
-
-# --- WYNIKI ---
-if st.session_state.scan_stage == "RESULT":
-    shape, metrics = st.session_state.final_shape
-    advice = recommender.get_advice(shape)
+# 3. EKRAN WYNIKÓW
+elif st.session_state.stage == "RESULT":
+    # Analiza
+    # Poprawka: Przekazujemy płeć do silnika geometrii!
+    shape, metrics = engine.get_face_shape(st.session_state.data, gender=st.session_state.gender)
+    advice = recommender.get_advice(shape, st.session_state.gender)
     
-    st.balloons()
+    col1, col2 = st.columns([1, 2], gap="large")
     
-    col_res1, col_res2 = st.columns([1, 1])
-    
-    with col_res1:
-        st.success(f"Kształt: **{shape}**")
-        st.metric("Pewność", f"{int(metrics['match_confidence']*100)}%")
-        # Placeholder grafiki
-        st.image(f"https://placehold.co/400x400/262730/FAFAFA?text={shape}", caption="Wizualizacja")
+    with col1:
+        st.markdown(f"""
+        <div class="glass-card">
+            <span class="shape-badge">WYNIK</span>
+            <div style="margin-top: 10px; color: #888;">Twój kształt to:</div>
+            <div class="big-metric">{shape}</div>
+            <div style="margin-top: 20px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span>Dopasowanie</span>
+                    <span>{int(metrics['match_confidence']*100)}%</span>
+                </div>
+                <div style="height:8px; background:#333; border-radius:4px;">
+                    <div style="height:100%; width:{int(metrics['match_confidence']*100)}%; background:#FF4B4B; border-radius:4px;"></div>
+                </div>
+            </div>
+            <hr style="border-color: #333; margin: 20px 0;">
+            <div style="font-size: 0.9rem; color: #aaa;">
+                HW Ratio: {metrics['ratio_hw']}<br>
+                JF Ratio: {metrics['ratio_jf']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
-    with col_res2:
-        st.markdown("### 💇‍♀️ Rekomendacje")
-        st.info(advice['description'])
-        st.markdown("**✅ Polecane:**")
-        for h in advice['hairstyles']:
-            st.markdown(f"* {h}")
-        st.error(f"**❌ Unikaj:** {advice['avoid']}")
+        if st.button("🔄 Nowa Analiza", use_container_width=True):
+            st.session_state.stage = "IDLE"; st.rerun()
+
+    with col2:
+        st.markdown(f"""
+        <div class="glass-card">
+            <h3 style="margin-top:0;">💡 Rekomendacje Stylisty</h3>
+            <p style="font-size: 1.1rem; line-height: 1.6;">{advice['description']}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-    st.markdown("---")
-    if st.button("🔄 Nowy Skan", use_container_width=True, key="restart_btn"):
-        st.session_state.scan_stage = "IDLE"
-        st.session_state.scan_data = {"front": None, "left": None, "right": None}
-        st.rerun()
+        st.subheader(f"Top fryzury ({st.session_state.gender})")
+        
+        # Wyświetlanie kafelków (Flow layout)
+        html_tags = "".join([f'<div class="hair-pill">{h}</div>' for h in advice['hairstyles']])
+        st.markdown(html_tags, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.error(f"⚠️ **Unikaj:** {advice['avoid']}")
