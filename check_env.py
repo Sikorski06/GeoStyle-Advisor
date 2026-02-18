@@ -14,7 +14,7 @@ try:
     # To jest linia, która zazwyczaj wywala błąd DLL, jeśli czegoś brakuje
     import mediapipe.python.solutions as solutions_module
     print("Udało się zaimportować 'mediapipe.python.solutions' bezpośrednio.")
-
+ 
     print("\n--- KROK 3: Sprawdzenie mp.solutions ---")
     import mediapipe as mp
     
