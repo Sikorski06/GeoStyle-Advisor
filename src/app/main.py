@@ -11,7 +11,7 @@ from core.geometry import GeometryEngine
 from core.recommender import HairstyleRecommender
 
 # --- KONFIGURACJA STRONY ---
-st.set_page_config(page_title="GeoStyle AI", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="GeoStyle Pro", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
 # --- STYLIZACJA (CSS) ---
 st.markdown("""
@@ -33,7 +33,7 @@ st.markdown("""
     /* Nagłówek (tylko dla IDLE/RESULT) */
     .hero-title {
         font-size: 4rem;
-        font-weight: 850;
+        font-weight: 800;
         background: -webkit-linear-gradient(45deg, #FF4B4B, #FF914D);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -58,59 +58,35 @@ st.markdown("""
         padding: 3rem;
         margin-bottom: 1.5rem;
     }
-    
-    /* 4. PRZYCISK STARTOWY (GIGANTYCZNY) */
-    .big-button button {
-        width: 100%;
-        height: 100px;       /* ZWIĘKSZONO z 65px */
-        font-size: 2.2rem;   /* ZWIĘKSZONO z 1.3rem */
-        font-weight: 900;    /* Extra bold */
-        background: linear-gradient(90deg, #FF4B4B, #FF914D);
-        border: none;
-        border-radius: 20px; /* Bardziej zaokrąglony */
-        color: white;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        box-shadow: 0 10px 40px rgba(255, 75, 75, 0.4); /* Dodano silny cień/poświatę */
-        transition: all 0.2s;
-    }
-    .big-button button:hover {
-        transform: scale(1.03);
-        box-shadow: 0 15px 50px rgba(255, 75, 75, 0.6);
-    }
 
-    /* 5. STICKY HUD (POWIĘKSZONY ZNACZNIE) */
+    /* 5. STICKY HUD (PRAWY GÓRNY RÓG - POWIĘKSZONY) */
     .sticky-hud {
         position: fixed;
         top: 30px;
-        right: 30px;
-        width: 380px; /* Zwiększona szerokość */
+        right: 40px;
+        width: 400px; /* Szeroki panel */
         background: rgba(15, 15, 20, 0.95);
         border: 1px solid rgba(100, 100, 100, 0.5);
         border-radius: 16px;
-        padding: 30px; /* Większy padding */
+        padding: 30px;
         z-index: 9998;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.8);
     }
             
-    /* 6. CZERWONY PRZYCISK PRZERWIJ (POD HUDEM) */
-    div:has(div#fix-stop-btn) {
-        display: none;
-    }
-    
-    /* Magiczny selektor: Znajdź przycisk, który jest zaraz po naszym znaczniku */
+    /* 6. PRZYCISK PRZERWIJ (CZERWONY - POD HUDEM) */
+    /* Stylujemy przycisk sąsiadujący z markerem */
     div:has(div#fix-stop-btn) + div button {
         position: fixed !important;
-        top: 340px !important; /* Zaraz pod HUDem (30px top + ~280px hud height + margin) */
-        right: 30px !important;
-        width: 380px !important; /* Szerokość taka sama jak HUD */
-        height: 60px !important;
+        top: 260px !important; /* Wyliczone: 30px (top) + ~250px (HUD) + 40px (gap) */
+        right: 70px !important;
+        width: 340px !important; /* Taka sama szerokość jak HUD */
+        height: 70px !important;
         z-index: 99999 !important;
-        background-color: rgba(220, 38, 38, 0.9) !important;
-        border: 2px solid #EF4444 !important;
+        background-color: rgba(220, 20, 20, 0.9) !important;
+        border: 2px solid #FF0000 !important;
         color: white !important;
         font-weight: 800 !important;
-        font-size: 1.2rem !important;
+        font-size: 1.3rem !important;
         border-radius: 12px !important;
         text-transform: uppercase !important;
         letter-spacing: 1px !important;
@@ -119,14 +95,8 @@ st.markdown("""
     
     div:has(div#fix-stop-btn) + div button:hover {
         background-color: #FF0000 !important;
-        border-color: #FF4444 !important;
-        box-shadow: 0 0 20px rgba(255, 0, 0, 0.6) !important;
+        box-shadow: 0 0 25px rgba(255, 0, 0, 0.8) !important;
         transform: scale(1.02) !important;
-        color: white !important;
-    }
-    
-    div:has(div#fix-stop-btn) + div button:active {
-        transform: scale(0.98) !important;
     }
     
     /* Wyniki */
@@ -164,6 +134,49 @@ st.markdown("""
     /* Odstęp dla strony wyników */
     .results-spacer {
         height: 8vh;
+    }
+    
+    div.stButton > button {
+    margin-top:10px;
+    height: 1.2em;
+    text-align: center;                
+    font-size: 50px;
+    letter-spacing:1px;
+}
+    /* 7. DOLNY PANEL INFORMACYJNY (SKANOWANIE) */
+    .bottom-info-box {
+        position: fixed;
+        bottom: 30px;
+        right: 40px;
+        width: 380px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 15px 20px;
+        color: #9CA3AF;
+        font-size: 0.85rem;
+        z-index: 9997;
+        line-height: 1.4;
+    }
+    /* 8. POWIĘKSZONE DYMKI NA STRONIE WYNIKÓW */
+    .stAlert {
+        padding: 1.5rem !important;
+        border-radius: 15px !important;
+    }
+    .stAlert div p {
+        font-size: 1.15rem !important;
+        line-height: 1.6 !important;
+    }
+
+    /* Tytuł GeoStyle AI na wynikach */
+    .results-title {
+        text-align: center; 
+        color: #FF4B4B; 
+        font-size: 4.5rem; 
+        font-weight: 900;
+        margin-top: -10px;
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -223,14 +236,14 @@ def draw_hud(img, text, progress=0.0, is_active=False):
 
 # 1. EKRAN STARTOWY
 if st.session_state.stage == "IDLE":
-    st.markdown('<div class="hero-title">GeoStyle AI</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hero-subtitle">Profesjonalna analiza biometryczna twarzy</div>', unsafe_allow_html=True)
-
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        st.markdown('<div class="hero-title">GeoStyle AI</div>', unsafe_allow_html=True)
+        st.markdown('<div class="hero-subtitle">Profesjonalna analiza biometryczna twarzy</div>', unsafe_allow_html=True)
+
         st.markdown("""
         <div class="glass-card" style="text-align: center;">
-            <h3>🎥 Zaawansowana analiza biometryczna 3D</h3>
+            <h3>🎥 Zaawansowana Analiza Biometryczna 3D</h3>
             <p style="color: #bbb;">Upewnij się, że masz dobre oświetlenie i patrzysz wprost w kamerę.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -238,25 +251,33 @@ if st.session_state.stage == "IDLE":
         g = st.selectbox("Wybierz profil analizy:", ["Kobieta", "Mężczyzna"], index=0)
         st.session_state.gender = "Female" if g == "Kobieta" else "Male"
         
-        st.markdown('<div class="big-button">', unsafe_allow_html=True)
-        if st.button("ROZPOCZNIJ SKANOWANIE 🚀"):
-            st.session_state.stage = "SCANNING"
+        if st.button("ROZPOCZNIJ SKANOWANIE 🚀", width='stretch', type="primary"):
+            st.session_state.stage = "SCANNING" # Nowy stan zbiorczy dla pętli
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+
 # 2. EKRAN SKANOWANIA (SCANNING)
-elif st.session_state.stage == "SCANNING":
-    
+if st.session_state.stage == "SCANNING":
+    st.empty()
     # UKŁAD: Kamera po lewej (Większa - 66%), Panel prawy (Pusty 33%)
     col_Cam, col_Empty = st.columns([2, 1])
-
-    # --- PRZYCISK PRZERWIJ (PŁYWAJĄCY) ---
-    st.markdown('<div id="fix-stop-btn"></div>', unsafe_allow_html=True)
-    if st.button("PRZERWIJ SKANOWANIE"):
-        st.session_state.stage = "IDLE"
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
+    
+    with col_Empty:
+            # --- PRZYCISK PRZERWIJ (PŁYWAJĄCY) ---
+        # Znacznik dla CSS, żeby namierzył przycisk poniżej
+        st.markdown('<div id="fix-stop-btn"></div>', unsafe_allow_html=True)
+        if st.button("PRZERWIJ SKANOWANIE", key="stop_btn"):
+            st.session_state.stage = "IDLE"
+            st.rerun()
+        # DOLNY PANEL INFO
+        st.markdown("""
+        <div class="bottom-info-box">
+            <b>💡 Wskazówki:</b><br>
+            • Zapewnij dobre oświetlenie twarzy.<br>
+            • Zdejmij akcesoria (np. okulary) dla większej precyzji.
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_Cam:
         placeholder = st.empty()
@@ -339,7 +360,7 @@ elif st.session_state.stage == "SCANNING":
                     if 'hold' in st.session_state: del st.session_state.hold
 
             draw_hud(frame, status_text, progress, is_locked)
-            placeholder.image(frame, channels="BGR", use_container_width=True)
+            placeholder.image(frame, channels="BGR", width='stretch')
             
         cap.release()
         
@@ -348,42 +369,31 @@ elif st.session_state.stage == "SCANNING":
             st.rerun()
 
 # 3. EKRAN WYNIKÓW
-elif st.session_state.stage == "RESULT":
-    # Odstęp, żeby wynik był na środku ekranu
-    st.markdown('<div class="results-spacer"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="hero-title">GeoStyle Pro</div>', unsafe_allow_html=True)
-    
-    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=st.session_state.gender)
+if st.session_state.stage == "RESULT":
+    st.markdown('<h1 class="hero-title">GeoStyle AI</h1>', unsafe_allow_html=True)
+    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=("Kobieta" if st.session_state =="Female" else "Mezczyzna"))
     advice = recommender.get_advice(shape, st.session_state.gender)
-    
     col1, col2 = st.columns([1, 2], gap="large")
-    
     with col1:
         st.markdown(f"""
-        <div class="glass-card">
-            <span class="shape-badge">WYNIK</span>
-            <div style="margin-top: 10px; color: #888;">Twój kształt to:</div>
-            <div class="big-metric">{shape}</div>
-            <div style="margin-top: 20px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span>Dopasowanie</span>
-                    <span>{int(metrics['match_confidence']*100)}%</span>
-                </div>
-                <div style="height:8px; background:#333; border-radius:4px;">
-                    <div style="height:100%; width:{int(metrics['match_confidence']*100)}%; background:#FF4B4B; border-radius:4px;"></div>
-                </div>
+        <div class="glass-card" style="text-align: center;">
+            <div style="color:#888; font-size:0.9rem; margin-bottom:10px;">IDENTYFIKACJA KSZTAŁTU</div>
+            <div style="font-size:3.5rem; font-weight:800; color:#FF4B4B;">{shape}</div>
+            <div style="margin: 25px 0; height:1px; background:#333;"></div>
+            <div style="display:flex; justify-content:space-between; color:#AAA; font-size:0.9rem;">
+                <span>DOPASOWANIE</span><span>{int(metrics['match_confidence']*100)}%</span>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🔄 Nowa Analiza", use_container_width=True):
+        </div>""", unsafe_allow_html=True)
+        st.write("")
+        if st.button("🔄 NOWA ANALIZA", use_container_width=True):
             st.session_state.stage = "IDLE"; st.rerun()
-
     with col2:
-        st.subheader(f"Polecane cięcia ({st.session_state.gender})")
-        html_tags = "".join([f'<div class="hair-pill">{h}</div>' for h in advice['hairstyles']])
-        st.markdown(html_tags, unsafe_allow_html=True)
-        
-        st.markdown("---")
+        st.markdown(f"### 🔥 Rekomendacje ({st.session_state.gender})")
         st.info(f"**Charakterystyka:** {advice['description']}")
-        st.error(f"**Unikaj:** {advice['avoid']}")
+        st.write("**PROPOZYCJE FRYZUR:**")
+        cols = st.columns(2)
+        for i, h in enumerate(advice['hairstyles']):
+            with cols[i % 2]:
+                st.markdown(f"<div style='background:#262730; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333;'><b>{h}</b></div>", unsafe_allow_html=True)
+        st.write("")
+        st.error(f"⚠️ **Unikaj:** {advice['avoid']}")
