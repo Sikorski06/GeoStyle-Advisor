@@ -11,9 +11,9 @@ from core.geometry import GeometryEngine
 from core.recommender import HairstyleRecommender
 
 # --- KONFIGURACJA STRONY ---
-st.set_page_config(page_title="GeoStyle Pro", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="GeoStyle AI", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# --- STYLIZACJA (GLASSMORPHISM CSS) ---
+# --- STYLIZACJA (CSS) ---
 st.markdown("""
 <style>
     /* Główne tło */
@@ -22,10 +22,18 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Nagłówek */
+    /* 2. UKRYWANIE ELEMENTÓW SYSTEMOWYCH */
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 5rem;
+    }   
+    
+    /* Nagłówek (tylko dla IDLE/RESULT) */
     .hero-title {
-        font-size: 3.5rem;
-        font-weight: 800;
+        font-size: 4rem;
+        font-weight: 850;
         background: -webkit-linear-gradient(45deg, #FF4B4B, #FF914D);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -37,18 +45,88 @@ st.markdown("""
         text-align: center;
         color: #9CA3AF;
         font-size: 1.2rem;
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
     }
 
-    /* Karty (Glassmorphism) */
+    /* Karty */
     .glass-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 24px;
-        padding: 2rem;
+        padding: 3rem;
         margin-bottom: 1.5rem;
+    }
+    
+    /* 4. PRZYCISK STARTOWY (GIGANTYCZNY) */
+    .big-button button {
+        width: 100%;
+        height: 100px;       /* ZWIĘKSZONO z 65px */
+        font-size: 2.2rem;   /* ZWIĘKSZONO z 1.3rem */
+        font-weight: 900;    /* Extra bold */
+        background: linear-gradient(90deg, #FF4B4B, #FF914D);
+        border: none;
+        border-radius: 20px; /* Bardziej zaokrąglony */
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        box-shadow: 0 10px 40px rgba(255, 75, 75, 0.4); /* Dodano silny cień/poświatę */
+        transition: all 0.2s;
+    }
+    .big-button button:hover {
+        transform: scale(1.03);
+        box-shadow: 0 15px 50px rgba(255, 75, 75, 0.6);
+    }
+
+    /* 5. STICKY HUD (POWIĘKSZONY ZNACZNIE) */
+    .sticky-hud {
+        position: fixed;
+        top: 30px;
+        right: 30px;
+        width: 380px; /* Zwiększona szerokość */
+        background: rgba(15, 15, 20, 0.95);
+        border: 1px solid rgba(100, 100, 100, 0.5);
+        border-radius: 16px;
+        padding: 30px; /* Większy padding */
+        z-index: 9998;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+    }
+            
+    /* 6. CZERWONY PRZYCISK PRZERWIJ (POD HUDEM) */
+    div:has(div#fix-stop-btn) {
+        display: none;
+    }
+    
+    /* Magiczny selektor: Znajdź przycisk, który jest zaraz po naszym znaczniku */
+    div:has(div#fix-stop-btn) + div button {
+        position: fixed !important;
+        top: 340px !important; /* Zaraz pod HUDem (30px top + ~280px hud height + margin) */
+        right: 30px !important;
+        width: 380px !important; /* Szerokość taka sama jak HUD */
+        height: 60px !important;
+        z-index: 99999 !important;
+        background-color: rgba(220, 38, 38, 0.9) !important;
+        border: 2px solid #EF4444 !important;
+        color: white !important;
+        font-weight: 800 !important;
+        font-size: 1.2rem !important;
+        border-radius: 12px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        transition: all 0.2s !important;
+    }
+    
+    div:has(div#fix-stop-btn) + div button:hover {
+        background-color: #FF0000 !important;
+        border-color: #FF4444 !important;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.6) !important;
+        transform: scale(1.02) !important;
+        color: white !important;
+    }
+    
+    div:has(div#fix-stop-btn) + div button:active {
+        transform: scale(0.98) !important;
     }
     
     /* Wyniki */
@@ -82,6 +160,11 @@ st.markdown("""
         background: rgba(255, 75, 75, 0.2);
         border-color: #FF4B4B;
     }
+    
+    /* Odstęp dla strony wyników */
+    .results-spacer {
+        height: 8vh;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,72 +187,84 @@ face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1)
 def draw_hud(img, text, progress=0.0, is_active=False):
     h, w, _ = img.shape
     
-    # Celownik (Owal)
+    # Celownik (Owal) - Wycentrowany
     cx, cy = w//2, h//2
-    # Idealne proporcje do wpasowania twarzy
-    ax, ay = int(w/3.8), int(h/2.2)
+    ax, ay = int(w/5.0), int(h/3.0) 
     
-    color = (0, 255, 0) if is_active else (150, 150, 150)
+    color_active = (0, 255, 0)
+    color_idle = (120, 120, 120)
+    color = color_active if is_active else color_idle
     thickness = 2 if is_active else 1
     
-    # Owal
-    cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 200, color, thickness)
-    # Krzyż celowniczy
+    # Owal i celownik
+    cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 360, color, thickness)
     cv2.line(img, (cx-10, cy), (cx+10, cy), color, 1)
     cv2.line(img, (cx, cy-10), (cx, cy+10), color, 1)
 
-    # Panel informacyjny na górze
-    cv2.rectangle(img, (0, 0), (w, 60), (0,0,0), -1)
-    cv2.putText(img, text.upper(), (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+   # INSTRUKCJA (Overlay na dole wideo)
+    overlay_h = 60
+    cv2.rectangle(img, (0, 0), (w, overlay_h), (0,0,0), -1)
     
-    # Pasek postępu
+    font = cv2.FONT_HERSHEY_TRIPLEX
+    font_scale = 0.8
+    font_thick = 1
+    
+    text = text.upper()
+    tsz = cv2.getTextSize(text, font, font_scale, font_thick)[0]
+    tx = (w - tsz[0]) // 2
+    ty = int(overlay_h / 2) + 10
+    
+    cv2.putText(img, text, (tx, ty), font, font_scale, (255,255,255), font_thick, cv2.LINE_AA)
+    
     if progress > 0:
-        cv2.rectangle(img, (0, 56), (int(w*progress), 60), (0, 255, 0), -1)
+        cv2.rectangle(img, (0, overlay_h-5), (int(w*progress), overlay_h), (0, 255, 0), -1)
 
-# --- LAYOUT APLIKACJI ---
-
-st.markdown('<div class="hero-title">GeoStyle Pro</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">Profesjonalna analiza biometryczna twarzy</div>', unsafe_allow_html=True)
+# --- LOGIKA APLIKACJI ---
 
 # 1. EKRAN STARTOWY
 if st.session_state.stage == "IDLE":
+    st.markdown('<div class="hero-title">GeoStyle AI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-subtitle">Profesjonalna analiza biometryczna twarzy</div>', unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("""
         <div class="glass-card" style="text-align: center;">
-            <h3>🎥 Rozpocznij sesję</h3>
+            <h3>🎥 Zaawansowana analiza biometryczna 3D</h3>
             <p style="color: #bbb;">Upewnij się, że masz dobre oświetlenie i patrzysz wprost w kamerę.</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Wybór płci PRZED skanem (wpływa na algorytm geometrii)
         g = st.selectbox("Wybierz profil analizy:", ["Kobieta", "Mężczyzna"], index=0)
         st.session_state.gender = "Female" if g == "Kobieta" else "Male"
         
-        if st.button("URUCHOM SYSTEM", use_container_width=True, type="primary"):
-            st.session_state.stage = "FRONT"
+        st.markdown('<div class="big-button">', unsafe_allow_html=True)
+        if st.button("ROZPOCZNIJ SKANOWANIE 🚀"):
+            st.session_state.stage = "SCANNING"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# 2. EKRAN SKANOWANIA
-elif st.session_state.stage in ["FRONT", "LEFT", "RIGHT"]:
-    col_main, col_side = st.columns([3, 1])
+# 2. EKRAN SKANOWANIA (SCANNING)
+elif st.session_state.stage == "SCANNING":
     
-    with col_side:
-        st.markdown(f"""
-        <div class="glass-card">
-            <h4>Instrukcja</h4>
-            <p>1. Umieść twarz w owalu.</p>
-            <p>2. Wykonaj polecenia wyświetlane na wideo.</p>
-            <p>3. Utrzymaj pozycję przez 3 sekundy.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Przerwij", use_container_width=True):
-            st.session_state.stage = "IDLE"; st.rerun()
+    # UKŁAD: Kamera po lewej (Większa - 66%), Panel prawy (Pusty 33%)
+    col_Cam, col_Empty = st.columns([2, 1])
 
-    with col_main:
-        # Pętla wideo
+    # --- PRZYCISK PRZERWIJ (PŁYWAJĄCY) ---
+    st.markdown('<div id="fix-stop-btn"></div>', unsafe_allow_html=True)
+    if st.button("PRZERWIJ SKANOWANIE"):
+        st.session_state.stage = "IDLE"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+    with col_Cam:
         placeholder = st.empty()
+        hud_placeholder = st.empty()
+        
         cap = cv2.VideoCapture(0)
+        internal_stage = "FRONT"
+        scan_data = {}
         
         while cap.isOpened():
             ret, frame = cap.read()
@@ -178,66 +273,87 @@ elif st.session_state.stage in ["FRONT", "LEFT", "RIGHT"]:
             frame = cv2.flip(frame, 1)
             results = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             
-            status_text = "Szukam twarzy..."
+            # --- STICKY HUD (HTML) ---
+            instr_detail = ""
+            if internal_stage == "FRONT": instr_detail = "Patrz prosto w kamerę"
+            elif internal_stage == "LEFT": instr_detail = "Pokaż prawy profil"
+            elif internal_stage == "RIGHT": instr_detail = "Pokaż lewy profil"
+            
+            # Powiększone czcionki w HUD
+            hud_html = f"""
+            <div class="sticky-hud">
+                <div style="color:#888; font-size:0.9rem; letter-spacing:2px; margin-bottom:10px;">ETAP SKANOWANIA</div>
+                <div style="font-size:2.5rem; font-weight:900; color:#FFF; margin-bottom:15px; line-height: 1;">{internal_stage}</div>
+                <div style="font-size:1.2rem; line-height:1.5; color:#DDD;">{instr_detail}</div>
+                <div style="margin-top:25px; font-size:1rem; color:#FF4B4B; font-weight:800;">
+                    ⏳ TRZYMAJ NIERUCHOMO (3s)
+                </div>
+            </div>
+            """
+            hud_placeholder.markdown(hud_html, unsafe_allow_html=True)
+
+            status_text = ""
             progress = 0.0
             is_locked = False
-            
+
             if results.multi_face_landmarks:
                 landmarks = results.multi_face_landmarks[0].landmark
-                # Rysowanie siatki (Tesselation) dla efektu Sci-Fi
+                
                 mp_drawing.draw_landmarks(frame, results.multi_face_landmarks[0], 
-                                          mp_face_mesh.FACEMESH_TESSELATION, None,
-                                          mp_drawing.DrawingSpec(color=(255,255,255), thickness=1, circle_radius=0))
+                                          mp_face_mesh.FACEMESH_FACE_OVAL, None,
+                                          mp_drawing.DrawingSpec(color=(0,255,255), thickness=2))
 
-                # Logika Yaw (Obrót głowy)
-                # Obliczamy relację nosa do krawędzi twarzy
                 nose_x = landmarks[1].x
                 left_x = landmarks[234].x
                 right_x = landmarks[454].x
-                yaw_ratio = abs(nose_x - left_x) / abs(right_x - left_x)
+                yaw = abs(nose_x - left_x) / abs(right_x - left_x)
                 
-                target = st.session_state.stage
-                
-                # Warunki pozycji (Tolerancja 10%)
-                if target == "FRONT":
-                    is_locked = 0.45 < yaw_ratio < 0.55
-                    status_text = "Stabilizuj: FRONT" if is_locked else "Ustaw głowę PROSTO"
-                elif target == "LEFT":
-                    is_locked = yaw_ratio > 0.65
-                    status_text = "Stabilizuj: PROFIL LEWY" if is_locked else "Obroc w Prawo"
-                elif target == "RIGHT":
-                    is_locked = yaw_ratio < 0.35
-                    status_text = "Stabilizuj: PROFIL PRAWY" if is_locked else "Obróć w Lewo"
+                if internal_stage == "FRONT":
+                    is_locked = 0.45 < yaw < 0.55
+                    status_text = "STABILIZUJ: FRONT" if is_locked else "USTAW GLOWE PROSTO"
+                elif internal_stage == "LEFT":
+                    is_locked = yaw > 0.65
+                    status_text = "STABILIZUJ: LEWY PROFIL" if is_locked else "OBROC SIE W PRAWO"
+                elif internal_stage == "RIGHT":
+                    is_locked = yaw < 0.35
+                    status_text = "STABILIZUJ: PRAWY PROFIL" if is_locked else "OBROC SIE W LEWO"
 
-                # Timer (3 sekundy)
                 if is_locked:
-                    if 'start_hold' not in st.session_state: st.session_state.start_hold = time.time()
-                    elapsed = time.time() - st.session_state.start_hold
-                    progress = min(elapsed / 2.5, 1.0) # 2.5s dla lepszego UX
+                    if 'hold' not in st.session_state: st.session_state.hold = time.time()
+                    elapsed = time.time() - st.session_state.hold
+                    progress = min(elapsed / 3.0, 1.0)
                     
-                    if elapsed >= 2.5:
-                        if target == "FRONT":
-                            st.session_state.data = landmarks # Zapisujemy punkty frontowe do analizy
-                            st.session_state.stage = "LEFT"
-                        elif target == "LEFT":
-                            st.session_state.stage = "RIGHT"
+                    if elapsed >= 3.0:
+                        if internal_stage == "FRONT":
+                            scan_data["front"] = landmarks
+                            internal_stage = "LEFT"
+                        elif internal_stage == "LEFT":
+                            internal_stage = "RIGHT"
                         else:
-                            st.session_state.stage = "RESULT"
-                        
-                        if 'start_hold' in st.session_state: del st.session_state.start_hold
-                        cap.release()
-                        st.rerun()
+                            st.session_state.data = scan_data
+                            st.session_state.data["front"] = landmarks
+                            internal_stage = "DONE"
+                            break
+                        del st.session_state.hold
                 else:
-                    if 'start_hold' in st.session_state: del st.session_state.start_hold
+                    if 'hold' in st.session_state: del st.session_state.hold
 
             draw_hud(frame, status_text, progress, is_locked)
             placeholder.image(frame, channels="BGR", use_container_width=True)
+            
+        cap.release()
+        
+        if internal_stage == "DONE":
+            st.session_state.stage = "RESULT"
+            st.rerun()
 
 # 3. EKRAN WYNIKÓW
 elif st.session_state.stage == "RESULT":
-    # Analiza
-    # Poprawka: Przekazujemy płeć do silnika geometrii!
-    shape, metrics = engine.get_face_shape(st.session_state.data, gender=st.session_state.gender)
+    # Odstęp, żeby wynik był na środku ekranu
+    st.markdown('<div class="results-spacer"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">GeoStyle Pro</div>', unsafe_allow_html=True)
+    
+    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=st.session_state.gender)
     advice = recommender.get_advice(shape, st.session_state.gender)
     
     col1, col2 = st.columns([1, 2], gap="large")
@@ -257,11 +373,6 @@ elif st.session_state.stage == "RESULT":
                     <div style="height:100%; width:{int(metrics['match_confidence']*100)}%; background:#FF4B4B; border-radius:4px;"></div>
                 </div>
             </div>
-            <hr style="border-color: #333; margin: 20px 0;">
-            <div style="font-size: 0.9rem; color: #aaa;">
-                HW Ratio: {metrics['ratio_hw']}<br>
-                JF Ratio: {metrics['ratio_jf']}
-            </div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -269,18 +380,10 @@ elif st.session_state.stage == "RESULT":
             st.session_state.stage = "IDLE"; st.rerun()
 
     with col2:
-        st.markdown(f"""
-        <div class="glass-card">
-            <h3 style="margin-top:0;">💡 Rekomendacje Stylisty</h3>
-            <p style="font-size: 1.1rem; line-height: 1.6;">{advice['description']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.subheader(f"Top fryzury ({st.session_state.gender})")
-        
-        # Wyświetlanie kafelków (Flow layout)
+        st.subheader(f"Polecane cięcia ({st.session_state.gender})")
         html_tags = "".join([f'<div class="hair-pill">{h}</div>' for h in advice['hairstyles']])
         st.markdown(html_tags, unsafe_allow_html=True)
         
         st.markdown("---")
-        st.error(f"⚠️ **Unikaj:** {advice['avoid']}")
+        st.info(f"**Charakterystyka:** {advice['description']}")
+        st.error(f"**Unikaj:** {advice['avoid']}")
