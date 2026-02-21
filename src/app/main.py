@@ -9,6 +9,7 @@ import time
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 from core.geometry import GeometryEngine
 from core.recommender import HairstyleRecommender
+from core.logger import FeedbackLogger
 
 # --- KONFIGURACJA STRONY ---
 st.set_page_config(page_title="GeoStyle Pro", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
@@ -183,13 +184,14 @@ st.markdown("""
 
 # --- INICJALIZACJA ---
 @st.cache_resource
-def init(): return GeometryEngine(), HairstyleRecommender()
-engine, recommender = init()
+def init(): return GeometryEngine(), HairstyleRecommender(), FeedbackLogger()
+engine, recommender, fb_logger = init()
 
 # Stany
 if 'stage' not in st.session_state: st.session_state.stage = "IDLE"
 if 'data' not in st.session_state: st.session_state.data = None
 if 'gender' not in st.session_state: st.session_state.gender = "Female"
+if 'feedback_submitted' not in st.session_state: st.session_state.feedback_submitted = False
 
 # MediaPipe
 mp_face_mesh = mp.solutions.face_mesh
@@ -253,6 +255,7 @@ if st.session_state.stage == "IDLE":
         
         if st.button("ROZPOCZNIJ SKANOWANIE 🚀", width='stretch', type="primary"):
             st.session_state.stage = "SCANNING" # Nowy stan zbiorczy dla pętli
+            st.session_state.feedback_submitted = False # Reset pętli sprzężenia przy nowym skanowaniu
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -297,8 +300,8 @@ if st.session_state.stage == "SCANNING":
             # --- STICKY HUD (HTML) ---
             instr_detail = ""
             if internal_stage == "FRONT": instr_detail = "Patrz prosto w kamerę"
-            elif internal_stage == "LEFT": instr_detail = "Pokaż prawy profil"
             elif internal_stage == "RIGHT": instr_detail = "Pokaż lewy profil"
+            elif internal_stage == "LEFT": instr_detail = "Pokaż prawy profil"
             
             # Powiększone czcionki w HUD
             hud_html = f"""
@@ -332,10 +335,10 @@ if st.session_state.stage == "SCANNING":
                 if internal_stage == "FRONT":
                     is_locked = 0.45 < yaw < 0.55
                     status_text = "STABILIZUJ: FRONT" if is_locked else "USTAW GLOWE PROSTO"
-                elif internal_stage == "LEFT":
+                elif internal_stage == "RIGHT":
                     is_locked = yaw > 0.65
                     status_text = "STABILIZUJ: LEWY PROFIL" if is_locked else "OBROC SIE W PRAWO"
-                elif internal_stage == "RIGHT":
+                elif internal_stage == "LEFT":
                     is_locked = yaw < 0.35
                     status_text = "STABILIZUJ: PRAWY PROFIL" if is_locked else "OBROC SIE W LEWO"
 
@@ -371,7 +374,7 @@ if st.session_state.stage == "SCANNING":
 # 3. EKRAN WYNIKÓW
 if st.session_state.stage == "RESULT":
     st.markdown('<h1 class="hero-title">GeoStyle AI</h1>', unsafe_allow_html=True)
-    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=("Kobieta" if st.session_state =="Female" else "Mezczyzna"))
+    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=st.session_state.gender)
     advice = recommender.get_advice(shape, st.session_state.gender)
     col1, col2 = st.columns([1, 2], gap="large")
     with col1:
@@ -384,6 +387,27 @@ if st.session_state.stage == "RESULT":
                 <span>DOPASOWANIE</span><span>{int(metrics['match_confidence']*100)}%</span>
             </div>
         </div>""", unsafe_allow_html=True)
+
+        # PĘTLA ZWROTNA (FEEDBACK LOOP)
+        if not st.session_state.feedback_submitted:
+            st.markdown("<div style='text-align:center; color:#AAA; font-size:0.9rem; margin-bottom: 10px;'>Czy algorytm poprawnie rozpoznał Twój kształt twarzy?</div>", unsafe_allow_html=True)
+            fb_c1, fb_c2 = st.columns(2)
+            with fb_c1:
+                # Wymuszenie nadpisania klas Streamlit dla tych mniejszych przycisków
+                st.markdown("<style>div[data-testid='column']:nth-of-type(1) div.stButton > button { font-size: 1.2rem; height: auto; margin-top: 0; }</style>", unsafe_allow_html=True)
+                if st.button("✅ TAK", use_container_width=True):
+                    fb_logger.log_result(shape, st.session_state.gender, metrics, True)
+                    st.session_state.feedback_submitted = True
+                    st.rerun()
+            with fb_c2:
+                st.markdown("<style>div[data-testid='column']:nth-of-type(2) div.stButton > button { font-size: 1.2rem; height: auto; margin-top: 0; }</style>", unsafe_allow_html=True)
+                if st.button("❌ NIE", use_container_width=True):
+                    fb_logger.log_result(shape, st.session_state.gender, metrics, False)
+                    st.session_state.feedback_submitted = True
+                    st.rerun()
+        else:
+            st.success("Dane zapisane do bufora logowania. System dziękuje za kalibrację.")
+            
         st.write("")
         if st.button("🔄 NOWA ANALIZA", use_container_width=True):
             st.session_state.stage = "IDLE"; st.rerun()

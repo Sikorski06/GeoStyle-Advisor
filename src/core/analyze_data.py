@@ -8,23 +8,23 @@ OUTPUT_JSON = "config/face_profiles.json"
 
 def main():
     if not os.path.exists(INPUT_FILE):
-        print("Brak pliku measurements.csv")
+        print("Brak pliku źródłowego wektorów: measurements.csv")
         return
 
     df = pd.read_csv(INPUT_FILE)
     
-    # obliczanie median z grupowaniem po kształcie i płci
-    # tworzy strukturę: kształt -> płeć -> wartości
-    stats = df.groupby(['category', 'gender'])[['ratio_hw', 'ratio_jf']].median()
+    # Agregacja medianowa w przestrzeni 4D
+    stats = df.groupby(['category', 'gender'])[['ratio_hw', 'ratio_jf', 'ratio_fw', 'ratio_fj']].median()
     
-    # transformacja do słownika zagnieżdżonego
     profiles = {}
     for (shape, gender), row in stats.iterrows():
         if shape not in profiles:
             profiles[shape] = {}
         profiles[shape][gender] = {
             "ratio_hw": row["ratio_hw"],
-            "ratio_jf": row["ratio_jf"]
+            "ratio_jf": row["ratio_jf"],
+            "ratio_fw": row["ratio_fw"],
+            "ratio_fj": row["ratio_fj"]
         }
 
     if not os.path.exists("config"):
@@ -33,7 +33,7 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(profiles, f, indent=4)
     
-    print(f"Zapisano profile uwzględniające płeć do {OUTPUT_JSON}")
+    print(f"Baza wzorców (Face Profiles) skompilowana i zapisana: {OUTPUT_JSON}")
 
 if __name__ == "__main__":
     main()

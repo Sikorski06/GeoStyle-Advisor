@@ -10,75 +10,76 @@ class GeometryEngine:
 
     def _load_profiles(self):
         if not os.path.exists(CONFIG_PATH):
-            # Fallback jeśli brak pliku - zapobiega crashowi przy starcie
             return {}
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
 
-    def calculate_distance(self, p1, p2):
-        return np.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2)
+    def calculate_pixel_distance(self, p1, p2, width=640, height=480):
+        # Fallback na proporcję 4:3 w celu stabilizacji wektora przy braku wymiarów z frontend'u
+        dx = (p1.x - p2.x) * width
+        dy = (p1.y - p2.y) * height
+        return np.sqrt(dx**2 + dy**2)
 
-    def get_face_shape(self, landmarks, gender="Female"):
-        """
-        Klasyfikuje kształt biorąc pod uwagę płeć.
-        Argument gender jest teraz wymagany przez main.py.
-        """
-        # 1. Punkty kluczowe (MediaPipe Indices)
+    def get_face_shape(self, landmarks, gender="Female", **kwargs):
+        # Hard-mapping zmiennych interfejsu
+        mapped_gender = "Female" if gender in ["Kobieta", "Female"] else "Male"
+
+        # Pobranie topologii kluczowej
         top = landmarks[10]
         chin = landmarks[152]
         cheek_left = landmarks[234]
         cheek_right = landmarks[454]
         jaw_left = landmarks[58]
         jaw_right = landmarks[288]
+        fh_left = landmarks[71]
+        fh_right = landmarks[301]
 
-        # 2. Obliczenia metryk
-        height = self.calculate_distance(top, chin)
-        width = self.calculate_distance(cheek_left, cheek_right)
-        jaw_width = self.calculate_distance(jaw_left, jaw_right)
+        # Generacja dystansów euklidesowych
+        f_height = self.calculate_pixel_distance(top, chin)
+        f_width = self.calculate_pixel_distance(cheek_left, cheek_right)
+        j_width = self.calculate_pixel_distance(jaw_left, jaw_right)
+        fw_width = self.calculate_pixel_distance(fh_left, fh_right)
 
-        # Zabezpieczenie przed dzieleniem przez zero
-        if width == 0: width = 0.001
+        if f_width == 0: f_width = 0.001
+        if j_width == 0: j_width = 0.001
 
-        ratio_hw = height / width
-        ratio_jf = jaw_width / width
+        # Aktualne metryki obiektu (4 wektory)
+        current_hw = f_height / f_width
+        current_jf = j_width / f_width
+        current_fw = fw_width / f_width
+        current_fj = fw_width / j_width
 
-        # 3. Logika Decyzyjna
         best_match = "Unknown"
-        min_error = float("inf")
-
-        # Iterujemy przez profile z pliku JSON
-        # Oczekiwana struktura JSON: { "Square": { "Male": {...}, "Female": {...} } }
+        min_distance = float("inf")
+        
+        # Klasyfikator Euklidesowy K-Nearest Neighbor (k=1)
         for shape, gender_data in self.profiles.items():
-            
-            # Wybór danych dla odpowiedniej płci
-            if gender in gender_data:
-                metrics = gender_data[gender]
-            else:
-                # Jeśli brak danych dla konkretnej płci, bierzemy pierwsze dostępne (fallback)
-                if isinstance(gender_data, dict) and len(gender_data) > 0:
-                    metrics = list(gender_data.values())[0]
-                else:
-                    continue
+            metrics = gender_data.get(mapped_gender) or (list(gender_data.values())[0] if gender_data else None)
+            if not metrics: continue
 
-            # Obliczanie błędu dopasowania
-            try:
-                target_hw = metrics.get("ratio_hw", 0)
-                target_jf = metrics.get("ratio_jf", 0)
-                
-                # Błąd euklidesowy ważony
-                error = abs(target_hw - ratio_hw) + abs(target_jf - ratio_jf)
-                
-                if error < min_error:
-                    min_error = error
-                    best_match = shape
-            except (KeyError, TypeError):
-                continue
+            t_hw = metrics.get("ratio_hw", current_hw)
+            t_jf = metrics.get("ratio_jf", current_jf)
+            t_fw = metrics.get("ratio_fw", current_fw)
+            t_fj = metrics.get("ratio_fj", current_fj)
 
-        # Obliczanie pewności (0-1)
-        confidence = 1.0 - min(min_error, 1.0)
+            # Ważony dystans euklidesowy. Priorytetyzacja osi podłużnej (hw) i szczękowej (jf).
+            dist = np.sqrt(
+                2.0 * (t_hw - current_hw)**2 +
+                1.5 * (t_jf - current_jf)**2 +
+                1.0 * (t_fw - current_fw)**2 +
+                1.0 * (t_fj - current_fj)**2
+            )
+
+            if dist < min_distance:
+                min_distance = dist
+                best_match = shape
+
+        # Normalizacja odległości do procentu ufności. Współczynnik 3.0 stanowi wzmocnienie kary za błąd.
+        confidence_raw = 1.0 - (min_distance * 3.0)
+        match_confidence = max(0.01, min(0.99, confidence_raw))
 
         return best_match, {
-            "ratio_hw": round(ratio_hw, 2),
-            "ratio_jf": round(ratio_jf, 2),
-            "match_confidence": round(confidence, 2)
+            "ratio_hw": round(current_hw, 2),
+            "ratio_jf": round(current_jf, 2),
+            "match_confidence": round(match_confidence, 2)
         }
