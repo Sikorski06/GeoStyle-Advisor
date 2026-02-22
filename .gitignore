@@ -5,6 +5,7 @@ env/
 
 # Ignoruj dane, ale zachowaj foldery
 data/raw/*
+!data/raw/test_data.mp4
 
 # Ignoruj sekrety i lokalną konfigurację Streamlit
 .streamlit/secrets.toml
