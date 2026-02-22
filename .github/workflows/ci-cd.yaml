@@ -1,0 +1,54 @@
+name: GeoStyle CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobranie repozytorium (Checkout)
+        uses: actions/checkout@v3
+
+      - name: Konfiguracja środowiska Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Autoryzacja w rejestrze Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Konfiguracja Buildx (Optymalizacja cache)
+        uses: docker/setup-buildx-action@v2
+
+      - name: Kompilacja i eksport obrazu (Build and Push)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/geostyle-app:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/geostyle-app:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/geostyle-app:buildcache,mode=max
+
+  kubernetes-validation:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobranie repozytorium (Checkout)
+        uses: actions/checkout@v3
+
+      - name: Instalacja Kubeval (Walidacja syntaktyczna)
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin
+
+      - name: Analiza manifestów klastra
+        run: kubeval k8s/*.yaml
+
