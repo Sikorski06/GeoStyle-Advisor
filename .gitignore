@@ -5,8 +5,6 @@ env/
 
 # Ignoruj dane, ale zachowaj foldery
 data/raw/*
-data/processed/*
-data/feedback/*
 
 # Ignoruj sekrety i lokalną konfigurację Streamlit
 .streamlit/secrets.toml
