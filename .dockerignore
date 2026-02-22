@@ -64,7 +64,7 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Do projektu
 data/raw/*
 !data/raw/test_data.mp4
 ```

@@ -1,4 +1,4 @@
-# Core - Wersje sztywne dla stabilności
+# Wersje sztywne dla stabilności
 numpy==1.26.4
 mediapipe==0.10.9
 opencv-python-headless

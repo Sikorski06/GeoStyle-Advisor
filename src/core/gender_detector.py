@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 import os
 
 class GenderDetector:
@@ -11,7 +10,7 @@ class GenderDetector:
         
         try:
             self.net = cv2.dnn.readNet(self.weights, self.proto)
-            print("✅ Model płci załadowany poprawnie.")
+            print("Model płci załadowany poprawnie.")
         except Exception as e:
             print(f"⚠️ Błąd ładowania modelu CV2: {e}")
             self.net = None

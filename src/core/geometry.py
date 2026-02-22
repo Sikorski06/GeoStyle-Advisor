@@ -23,11 +23,10 @@ class GeometryEngine:
     def get_face_shape(self, landmarks, gender="Female", **kwargs):
         mapped_gender = "Female" if gender in ["Kobieta", "Female"] else "Male"
 
-        # Pobranie wymiarów ze strumienia wideo zdefiniowanych w kwargs, domyślnie 640x480 w razie awarii I/O
+        # Pobranie wymiarów ze strumienia wideo zdefiniowanych w kwargs, domyślnie 640x480 w przypadku awarii I/O
         fw = kwargs.get("frame_width", 640)
         fh = kwargs.get("frame_height", 480)
 
-        # Pobranie topologii kluczowej
         top = landmarks[10]
         chin = landmarks[152]
         cheek_left = landmarks[234]
@@ -77,7 +76,7 @@ class GeometryEngine:
                 min_distance = dist
                 best_match = shape
 
-        # Normalizacja odległości - zredukowany mnożnik kary (1.5 zamiast 3.0) w celu wyrównania czułości algorytmu
+        # Normalizacja odległości - zredukowany mnożnik kary 1.5 zamiast 3.0 w celu wyrównania czułości algorytmu
         confidence_raw = 1.0 - (min_distance * 1.5)
         match_confidence = max(0.01, min(0.99, confidence_raw))
 

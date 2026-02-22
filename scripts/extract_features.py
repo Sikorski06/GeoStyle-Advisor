@@ -58,7 +58,7 @@ def main():
             j_width = calculate_distance(landmarks[58], landmarks[288], w, h)
             fw_width = calculate_distance(landmarks[71], landmarks[301], w, h) # Szerokość czoła
 
-            # Zapobieganie błędom dzielenia przez zero (ZeroDivisionError Guard)
+            # Zapobieganie dzielenia przez zero
             if f_width == 0: f_width = 0.001
             if j_width == 0: j_width = 0.001
 

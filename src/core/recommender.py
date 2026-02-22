@@ -1,5 +1,3 @@
-import random
-
 class TrendResearcher:
     """
     Symulator modułu badawczego. 

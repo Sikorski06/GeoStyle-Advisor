@@ -3,12 +3,11 @@ venv/
 .venv/
 env/
 
-# Ignoruj dane, ale zachowaj foldery
 data/raw/*
 !data/raw/test_data.mp4
 
-# Ignoruj sekrety i lokalną konfigurację Streamlit
+# Sekrety i lokalna konfiguracja Streamlit
 .streamlit/secrets.toml
 
-# Ignoruj lokalne pliki konfiguracyjne VS Code (opcjonalnie, ale dobra praktyka)
+# lokalne pliki konfiguracyjne VS Code
 .vscode/

@@ -11,10 +11,10 @@ from core.geometry import GeometryEngine
 from core.recommender import HairstyleRecommender
 from core.logger import FeedbackLogger
 
-# --- KONFIGURACJA STRONY ---
+# KONFIGURACJA STRONY
 st.set_page_config(page_title="GeoStyle Pro", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# --- STYLIZACJA (CSS) ---
+# Wygląd - CSS
 st.markdown("""
 <style>
     /* Główne tło */
@@ -23,7 +23,7 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* 2. UKRYWANIE ELEMENTÓW SYSTEMOWYCH */
+    /* UKRYWANIE ELEMENTÓW SYSTEMOWYCH */
     header {visibility: hidden;}
     footer {visibility: hidden;}
     .block-container {
@@ -31,7 +31,7 @@ st.markdown("""
         padding-bottom: 5rem;
     }   
     
-    /* Nagłówek (tylko dla IDLE/RESULT) */
+    /* Nagłówek (IDLE/RESULT) */
     .hero-title {
         font-size: 4rem;
         font-weight: 800;
@@ -60,7 +60,7 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
 
-    /* 5. STICKY HUD (PRAWY GÓRNY RÓG - POWIĘKSZONY) */
+    /* STICKY HUD */
     .sticky-hud {
         position: fixed;
         top: 30px;
@@ -74,8 +74,7 @@ st.markdown("""
         box-shadow: 0 15px 50px rgba(0,0,0,0.8);
     }
             
-    /* 6. PRZYCISK PRZERWIJ (CZERWONY - POD HUDEM) */
-    /* Stylujemy przycisk sąsiadujący z markerem */
+    /* PRZYCISK PRZERWIJ*/
     div:has(div#fix-stop-btn) + div button {
         position: fixed !important;
         top: 260px !important; /* Wyliczone: 30px (top) + ~250px (HUD) + 40px (gap) */
@@ -144,7 +143,7 @@ st.markdown("""
     font-size: 50px;
     letter-spacing:1px;
 }
-    /* 7. DOLNY PANEL INFORMACYJNY (SKANOWANIE) */
+    /* DOLNY PANEL INFORMACYJNY (skanowanie) */
     .bottom-info-box {
         position: fixed;
         bottom: 30px;
@@ -160,7 +159,7 @@ st.markdown("""
         z-index: 9997;
         line-height: 1.4;
     }
-    /* 8. POWIĘKSZONE DYMKI NA STRONIE WYNIKÓW */
+    /* DYMKI NA STRONIE WYNIKÓW */
     .stAlert {
         padding: 1.5rem !important;
         border-radius: 15px !important;
@@ -170,7 +169,7 @@ st.markdown("""
         line-height: 1.6 !important;
     }
 
-    /* Tytuł GeoStyle AI na wynikach */
+    /* Tytuł na wynikach */
     .results-title {
         text-align: center; 
         color: #FF4B4B; 
@@ -182,7 +181,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- INICJALIZACJA ---
+# INICJALIZACJA
 @st.cache_resource
 def init(): return GeometryEngine(), HairstyleRecommender(), FeedbackLogger()
 engine, recommender, fb_logger = init()
@@ -229,7 +228,7 @@ def draw_hud(img, text, progress=0.0, is_active=False):
     if progress > 0:
         cv2.rectangle(img, (0, overlay_h-5), (int(w*progress), overlay_h), (0, 255, 0), -1)
 
-# --- LOGIKA APLIKACJI ---
+# LOGIKA APLIKACJI 
 
 # 1. EKRAN STARTOWY
 if st.session_state.stage == "IDLE":
@@ -249,13 +248,13 @@ if st.session_state.stage == "IDLE":
         st.session_state.gender = "Female" if g == "Kobieta" else "Male"
         
         if st.button("ROZPOCZNIJ SKANOWANIE 🚀", width='stretch', type="primary"):
-            st.session_state.stage = "SCANNING" # Nowy stan zbiorczy dla pętli
-            st.session_state.feedback_submitted = False # Reset pętli sprzężenia przy nowym skanowaniu
+            st.session_state.stage = "SCANNING"
+            st.session_state.feedback_submitted = False # Reset pętli przy nowym skanowaniu
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# 2. EKRAN SKANOWANIA (SCANNING)
+# 2. EKRAN SKANOWANIA
 elif st.session_state.stage == "SCANNING":
     st.empty()
     col_Cam, col_Empty = st.columns([2, 1])
@@ -277,16 +276,14 @@ elif st.session_state.stage == "SCANNING":
         placeholder = st.empty()
         hud_placeholder = st.empty()
         
-        # HERMETYZACJA: Pobranie zmiennej środowiskowej z fallbackiem do pliku domyślnego
         video_source_env = os.getenv("VIDEO_SOURCE", os.path.join(os.getcwd(), "data", "raw", "test_data.mp4"))
         
         # Konwersja łańcucha znaków na int, jeśli zmienna wskazuje na kamerę fizyczną (np. "0")
         video_source = int(video_source_env) if video_source_env.isdigit() else video_source_env
         cap = cv2.VideoCapture(video_source)
 
-        # BLOKADA OBRONNA I/O
         if not cap.isOpened():
-            st.error(f"❌ KRYTYCZNY BŁĄD I/O: Brak strumienia wejściowego. Nie można zlokalizować pliku: {video_source}")
+            st.error(f"KRYTYCZNY BŁĄD I/O: Brak strumienia wejściowego. Nie można zlokalizować pliku: {video_source}")
             st.stop()
             
         
@@ -295,14 +292,17 @@ elif st.session_state.stage == "SCANNING":
         internal_stage = "FRONT"
         scan_data = {}
         
+        frames_processed = 0
+        
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret: 
                 if frames_processed == 0:
-                    st.error(f"❌ BŁĄD DEKODOWANIA: Zlokalizowano zasób {video_source}, ale odczyt pierwszej klatki jest niemożliwy. Plik może być pusty lub uszkodzony.")
+                    st.error(f"BŁĄD DEKODOWANIA: Zlokalizowano zasób {video_source}, ale odczyt pierwszej klatki jest niemożliwy. Plik może być pusty lub uszkodzony.")
                     st.stop()
                 break
             
+            frames_processed += 1
             frame = cv2.flip(frame, 1)
             results = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             
@@ -361,7 +361,6 @@ elif st.session_state.stage == "SCANNING":
                         elif internal_stage == "LEFT":  
                             internal_stage = "RIGHT"
                         else:
-                            # HERMETYZACJA: Zapis macierzy z wektorami wymiarowymi klatki
                             st.session_state.data = {"lms": scan_data["front"], "w": fw, "h": fh}
                             st.session_state.stage = "RESULT"
                             break
@@ -371,12 +370,11 @@ elif st.session_state.stage == "SCANNING":
 
             draw_hud(frame, status_text, progress, is_locked)
             
-            # RENDER: Zapobieganie zniekształceniom obrazu
-            # RENDER: Ominięcie asynchronicznego menedżera plików i naprawa struktury DOM
+            # Zapobieganie zniekształceniom obrazu
             _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
             placeholder.image(buffer.tobytes(), use_container_width=True)
             
-            # Wymuszenie stabilizacji narzutu sieciowego - 25 klatek na sekundę
+            # Wymuszenie stabilizacji - 25 klatek na sekundę
             time.sleep(0.04)
             
         cap.release()
@@ -388,7 +386,6 @@ elif st.session_state.stage == "RESULT":
     
     d = st.session_state.data
     
-    # HERMETYZACJA: Przekazanie kluczy rozdzielczości do przestrzeni 4D
     shape, metrics = engine.get_face_shape(d["lms"], frame_width=d["w"], frame_height=d["h"], gender=st.session_state.gender)
     advice = recommender.get_advice(shape, st.session_state.gender)
 
@@ -404,12 +401,11 @@ elif st.session_state.stage == "RESULT":
             </div>
         </div>""", unsafe_allow_html=True)
 
-        # PĘTLA ZWROTNA (FEEDBACK LOOP)
+        # FEEDBACK LOOP
         if not st.session_state.feedback_submitted:
             st.markdown("<div style='text-align:center; color:#AAA; font-size:0.9rem; margin-bottom: 10px;'>Czy algorytm poprawnie rozpoznał Twój kształt twarzy?</div>", unsafe_allow_html=True)
             fb_c1, fb_c2 = st.columns(2)
             with fb_c1:
-                # Wymuszenie nadpisania klas Streamlit dla tych mniejszych przycisków
                 st.markdown("<style>div[data-testid='column']:nth-of-type(1) div.stButton > button { font-size: 1.2rem; height: auto; margin-top: 0; }</style>", unsafe_allow_html=True)
                 if st.button("✅ TAK", width='stretch'):
                     fb_logger.log_result(shape, st.session_state.gender, metrics, True)

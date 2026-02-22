@@ -27,7 +27,7 @@ class FeedbackLogger:
                 ])
 
     def log_result(self, shape, gender, metrics, is_correct):
-        """Zapisuje wektor cech oraz ocenę użytkownika do pliku CSV."""
+        #Zapis wektorów cech oraz ocenę użytkownika do pliku CSV.
         with open(LOG_FILE, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([
