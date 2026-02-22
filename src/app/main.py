@@ -277,7 +277,18 @@ elif st.session_state.stage == "SCANNING":
         placeholder = st.empty()
         hud_placeholder = st.empty()
         
-        cap = cv2.VideoCapture(os.path.join(os.getcwd(), "data", "raw", "test_data.mp4"))
+        # HERMETYZACJA: Pobranie zmiennej środowiskowej z fallbackiem do pliku domyślnego
+        video_source_env = os.getenv("VIDEO_SOURCE", os.path.join(os.getcwd(), "data", "raw", "test_data.mp4"))
+        
+        # Konwersja łańcucha znaków na int, jeśli zmienna wskazuje na kamerę fizyczną (np. "0")
+        video_source = int(video_source_env) if video_source_env.isdigit() else video_source_env
+        cap = cv2.VideoCapture(video_source)
+
+        # BLOKADA OBRONNA I/O
+        if not cap.isOpened():
+            st.error(f"❌ KRYTYCZNY BŁĄD I/O: Brak strumienia wejściowego. Nie można zlokalizować pliku: {video_source}")
+            st.stop()
+            
         
         fw = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         fh = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -286,7 +297,11 @@ elif st.session_state.stage == "SCANNING":
         
         while cap.isOpened():
             ret, frame = cap.read()
-            if not ret: break
+            if not ret: 
+                if frames_processed == 0:
+                    st.error(f"❌ BŁĄD DEKODOWANIA: Zlokalizowano zasób {video_source}, ale odczyt pierwszej klatki jest niemożliwy. Plik może być pusty lub uszkodzony.")
+                    st.stop()
+                break
             
             frame = cv2.flip(frame, 1)
             results = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -355,8 +370,11 @@ elif st.session_state.stage == "SCANNING":
                     if 'hold' in st.session_state: del st.session_state.hold
 
             draw_hud(frame, status_text, progress, is_locked)
+            
             # RENDER: Zapobieganie zniekształceniom obrazu
-            placeholder.image(frame, channels="BGR", width='stretch')
+            # RENDER: Ominięcie asynchronicznego menedżera plików i naprawa struktury DOM
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            placeholder.image(buffer.tobytes(), use_container_width=True)
             
             # Wymuszenie stabilizacji narzutu sieciowego - 25 klatek na sekundę
             time.sleep(0.04)

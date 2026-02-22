@@ -2,9 +2,12 @@ import os
 import cv2
 import mediapipe as mp
 import glob
+import sys
 import pandas as pd
 import numpy as np
-from gender_detector import GenderDetector
+
+sys.path.append(os.path.join(os.getcwd(), 'src'))
+from core.gender_detector import GenderDetector
 
 # KONFIGURACJA
 RAW_DATA_DIR = "data/raw"

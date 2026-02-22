@@ -1,29 +1,70 @@
-#Kontrola wersji
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-.git
-.gitignore
+# C extensions
+*.so
 
-#Środowiska wirtualne
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
+# Virtual environments
 venv/
 env/
-.venv/
+ENV/
+.env
+.venv
 
-#Cache i pliki tymczasowe
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-pycache/
-*.pyc
-*.pyo
-*.pyd
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
 .pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Streamlit
 .streamlit/
 
-#Pliki systemowe
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
+# OS specific files
 .DS_Store
 Thumbs.db
 
-# Dane lokalne
+# Project specific
 data/raw/*
 !data/raw/test_data.mp4
-data/logs/
+```
