@@ -358,6 +358,9 @@ elif st.session_state.stage == "SCANNING":
             # RENDER: Zapobieganie zniekształceniom obrazu
             placeholder.image(frame, channels="BGR", width='stretch')
             
+            # Wymuszenie stabilizacji narzutu sieciowego - 25 klatek na sekundę
+            time.sleep(0.04)
+            
         cap.release()
         st.rerun()
 
