@@ -43,12 +43,11 @@ jobs:
       - name: Pobranie repozytorium (Checkout)
         uses: actions/checkout@v3
 
-      - name: Instalacja Kubeval (Walidacja syntaktyczna)
+      - name: Instalacja Kubeconform (Aktywny walidator)
         run: |
-          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
-          tar xf kubeval-linux-amd64.tar.gz
-          sudo mv kubeval /usr/local/bin
+          wget https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
 
       - name: Analiza manifestów klastra
-        run: kubeval k8s/*.yaml
-
+        run: kubeconform -summary k8s/
