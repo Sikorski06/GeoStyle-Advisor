@@ -1,12 +1,9 @@
-[![CI/CD Pipeline](https://github.com/Sikorski06/GeoStyle-Advisor/blob/main/.github/workflows/ci-cd.yaml/badge.svg)](https://https://github.com/Sikorski06/GeoStyle-Advisor/actions)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-![Status](https://img.shields.io/badge/Status-Completed-success)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![Status](https://img.shields.io/badge/Status-Completed-success)
 
 # GeoStyle-Advisor: Biometric Face Analysis Engine
 
 Privacy-First Face Analysis: A local biometric engine that processes data within an isolated cluster, eliminating the need to transmit images to external cloud APIs.
+
 
 ## Project Overview & Problem Statement
 Modern face analysis systems often rely on external SaaS providers, raising privacy concerns and generating significant network latency.
@@ -14,6 +11,7 @@ Modern face analysis systems often rely on external SaaS providers, raising priv
 GeoStyle-Advisor is a comprehensive **End-to-End solution** that classifies facial geometric features in real-time. The system utilizes a mathematical 4D Euclidean distance model to match face shapes against predefined biometric profiles and suggest optimal styling.
 
 **This project exceeds standard Python scripts – it is a fully containerized microservice application managed by Kubernetes and automated via CI/CD pipelines.**
+
 
 ## Project Architecture
 The system is designed following the Infrastructure as Code (IaC) paradigm, decoupling computational logic from environmental configuration.
@@ -28,6 +26,7 @@ The system is designed following the Infrastructure as Code (IaC) paradigm, deco
 
 5. **CI/CD Pipeline:** `GitHub Actions` automatically builds images, validates manifests using Kubeconform, and pushes artifacts to Docker Hub.
 
+
 ## 🛠 Key Engineering Highlights
 
 * **Zero-Cloud Inference:** All computations occur within the container. No image frames leave your infrastructure.
@@ -37,6 +36,7 @@ The system is designed following the Infrastructure as Code (IaC) paradigm, deco
 * **Production-Ready K8s:** Utilizes ConfigMap for face profile management, allowing database updates without rebuilding the Docker image.
 
 * **Automated Validation:** The CI/CD pipeline rigorously verifies Kubernetes manifest syntax using Kubeconform before publication.
+
 
 ## Tech Stack
 
@@ -52,9 +52,6 @@ Frontend: `Streamlit`
 
 ### Entry Page
 ![Entry Page](tests/Entry%20Page.png)
-
-### Scanning Page
-![Scan Page](tests/Scan%20Page.png.png)
 
 ### Results Page
 ![Result Page](tests/Results%20Page.png)
