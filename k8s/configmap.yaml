@@ -1,0 +1,33 @@
+apiVersion: v1
+data:
+  face_profiles.json: "{\r\n    \"Heart\": {\r\n        \"Female\": {\r\n            \"ratio_hw\":
+    1.1944853044515393,\r\n            \"ratio_jf\": 0.8739847399291002,\r\n            \"ratio_fw\":
+    0.8999058145461849,\r\n            \"ratio_fj\": 1.030528034612372\r\n        },\r\n
+    \       \"Male\": {\r\n            \"ratio_hw\": 1.1869212810355343,\r\n            \"ratio_jf\":
+    0.8675185119108788,\r\n            \"ratio_fw\": 0.9112930943201131,\r\n            \"ratio_fj\":
+    1.0494142183828394\r\n        }\r\n    },\r\n    \"Oblong\": {\r\n        \"Female\":
+    {\r\n            \"ratio_hw\": 1.2486965235364371,\r\n            \"ratio_jf\":
+    0.8820425940485535,\r\n            \"ratio_fw\": 0.8877309136805207,\r\n            \"ratio_fj\":
+    1.007637090139081\r\n        },\r\n        \"Male\": {\r\n            \"ratio_hw\":
+    1.2421085905838802,\r\n            \"ratio_jf\": 0.8752791495053446,\r\n            \"ratio_fw\":
+    0.8980190085518649,\r\n            \"ratio_fj\": 1.0236254309114303\r\n        }\r\n
+    \   },\r\n    \"Oval\": {\r\n        \"Female\": {\r\n            \"ratio_hw\":
+    1.194311941063959,\r\n            \"ratio_jf\": 0.8750925917209912,\r\n            \"ratio_fw\":
+    0.8965397808365552,\r\n            \"ratio_fj\": 1.0236713383226888\r\n        },\r\n
+    \       \"Male\": {\r\n            \"ratio_hw\": 1.192163056952186,\r\n            \"ratio_jf\":
+    0.8718938345136116,\r\n            \"ratio_fw\": 0.900885151895335,\r\n            \"ratio_fj\":
+    1.0342093021174863\r\n        }\r\n    },\r\n    \"Round\": {\r\n        \"Female\":
+    {\r\n            \"ratio_hw\": 1.149400305891775,\r\n            \"ratio_jf\":
+    0.8843173592431074,\r\n            \"ratio_fw\": 0.8905246307431539,\r\n            \"ratio_fj\":
+    1.0066860321201294\r\n        },\r\n        \"Male\": {\r\n            \"ratio_hw\":
+    1.1323479114498025,\r\n            \"ratio_jf\": 0.880255248233168,\r\n            \"ratio_fw\":
+    0.8966681921095305,\r\n            \"ratio_fj\": 1.0191735710546268\r\n        }\r\n
+    \   },\r\n    \"Square\": {\r\n        \"Female\": {\r\n            \"ratio_hw\":
+    1.163174449396922,\r\n            \"ratio_jf\": 0.8935224506053453,\r\n            \"ratio_fw\":
+    0.8889443224153533,\r\n            \"ratio_fj\": 0.9946158790513232\r\n        },\r\n
+    \       \"Male\": {\r\n            \"ratio_hw\": 1.165451089404276,\r\n            \"ratio_jf\":
+    0.8860285840447553,\r\n            \"ratio_fw\": 0.898019497333438,\r\n            \"ratio_fj\":
+    1.0158047061611442\r\n        }\r\n    }\r\n}"
+kind: ConfigMap
+metadata:
+  name: face-profiles-config

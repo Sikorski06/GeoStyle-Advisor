@@ -2,34 +2,33 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: geostyle-deployment
-  labels:
-    app: geostyle
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: geostyle
+      app: geostyle-app
   template:
     metadata:
       labels:
-        app: geostyle
+        app: geostyle-app
     spec:
       containers:
-      - name: geostyle-container
+      - name: geostyle-app
         image: geostyle-app:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         ports:
         - containerPort: 8501
         resources:
           requests:
+            cpu: "250m"
             memory: "512Mi"
-            cpu: "500m"
           limits:
-            memory: "1Gi"
             cpu: "1000m"
-        livenessProbe:
-          httpGet:
-            path: /_stcore/health
-            port: 8501
-          initialDelaySeconds: 15
-          periodSeconds: 20
+            memory: "1Gi"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: face-profiles-config
