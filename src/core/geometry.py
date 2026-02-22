@@ -14,15 +14,18 @@ class GeometryEngine:
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
 
-    def calculate_pixel_distance(self, p1, p2, width=640, height=480):
-        # Fallback na proporcję 4:3 w celu stabilizacji wektora przy braku wymiarów z frontend'u
+    def calculate_pixel_distance(self, p1, p2, width, height):
+        # Ekstrakcja dystansu w rzutowaniu na absolutne piksele klatki
         dx = (p1.x - p2.x) * width
         dy = (p1.y - p2.y) * height
         return np.sqrt(dx**2 + dy**2)
 
     def get_face_shape(self, landmarks, gender="Female", **kwargs):
-        # Hard-mapping zmiennych interfejsu
         mapped_gender = "Female" if gender in ["Kobieta", "Female"] else "Male"
+
+        # Pobranie wymiarów ze strumienia wideo zdefiniowanych w kwargs, domyślnie 640x480 w razie awarii I/O
+        fw = kwargs.get("frame_width", 640)
+        fh = kwargs.get("frame_height", 480)
 
         # Pobranie topologii kluczowej
         top = landmarks[10]
@@ -34,16 +37,16 @@ class GeometryEngine:
         fh_left = landmarks[71]
         fh_right = landmarks[301]
 
-        # Generacja dystansów euklidesowych
-        f_height = self.calculate_pixel_distance(top, chin)
-        f_width = self.calculate_pixel_distance(cheek_left, cheek_right)
-        j_width = self.calculate_pixel_distance(jaw_left, jaw_right)
-        fw_width = self.calculate_pixel_distance(fh_left, fh_right)
+        # Generacja dystansów euklidesowych z poprawioną propagacją szerokości/wysokości
+        f_height = self.calculate_pixel_distance(top, chin, fw, fh)
+        f_width = self.calculate_pixel_distance(cheek_left, cheek_right, fw, fh)
+        j_width = self.calculate_pixel_distance(jaw_left, jaw_right, fw, fh)
+        fw_width = self.calculate_pixel_distance(fh_left, fh_right, fw, fh)
 
         if f_width == 0: f_width = 0.001
         if j_width == 0: j_width = 0.001
 
-        # Aktualne metryki obiektu (4 wektory)
+        # Wektory obiektu
         current_hw = f_height / f_width
         current_jf = j_width / f_width
         current_fw = fw_width / f_width
@@ -52,7 +55,7 @@ class GeometryEngine:
         best_match = "Unknown"
         min_distance = float("inf")
         
-        # Klasyfikator Euklidesowy K-Nearest Neighbor (k=1)
+        # Klasyfikator Euklidesowy
         for shape, gender_data in self.profiles.items():
             metrics = gender_data.get(mapped_gender) or (list(gender_data.values())[0] if gender_data else None)
             if not metrics: continue
@@ -62,7 +65,7 @@ class GeometryEngine:
             t_fw = metrics.get("ratio_fw", current_fw)
             t_fj = metrics.get("ratio_fj", current_fj)
 
-            # Ważony dystans euklidesowy. Priorytetyzacja osi podłużnej (hw) i szczękowej (jf).
+            # Ważony dystans euklidesowy
             dist = np.sqrt(
                 2.0 * (t_hw - current_hw)**2 +
                 1.5 * (t_jf - current_jf)**2 +
@@ -74,8 +77,8 @@ class GeometryEngine:
                 min_distance = dist
                 best_match = shape
 
-        # Normalizacja odległości do procentu ufności. Współczynnik 3.0 stanowi wzmocnienie kary za błąd.
-        confidence_raw = 1.0 - (min_distance * 3.0)
+        # Normalizacja odległości - zredukowany mnożnik kary (1.5 zamiast 3.0) w celu wyrównania czułości algorytmu
+        confidence_raw = 1.0 - (min_distance * 1.5)
         match_confidence = max(0.01, min(0.99, confidence_raw))
 
         return best_match, {

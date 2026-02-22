@@ -187,36 +187,31 @@ st.markdown("""
 def init(): return GeometryEngine(), HairstyleRecommender(), FeedbackLogger()
 engine, recommender, fb_logger = init()
 
-# Stany
 if 'stage' not in st.session_state: st.session_state.stage = "IDLE"
 if 'data' not in st.session_state: st.session_state.data = None
 if 'gender' not in st.session_state: st.session_state.gender = "Female"
 if 'feedback_submitted' not in st.session_state: st.session_state.feedback_submitted = False
 
-# MediaPipe
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1)
 
-# Funkcja rysująca Overlay na wideo
 def draw_hud(img, text, progress=0.0, is_active=False):
     h, w, _ = img.shape
-    
-    # Celownik (Owal) - Wycentrowany
     cx, cy = w//2, h//2
-    ax, ay = int(w/5.0), int(h/3.0) 
+    
+    ay = int(h / 2.5) 
+    ax = int(ay * 0.75) 
     
     color_active = (0, 255, 0)
     color_idle = (120, 120, 120)
     color = color_active if is_active else color_idle
     thickness = 2 if is_active else 1
     
-    # Owal i celownik
     cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 360, color, thickness)
     cv2.line(img, (cx-10, cy), (cx+10, cy), color, 1)
     cv2.line(img, (cx, cy-10), (cx, cy+10), color, 1)
 
-   # INSTRUKCJA (Overlay na dole wideo)
     overlay_h = 60
     cv2.rectangle(img, (0, 0), (w, overlay_h), (0,0,0), -1)
     
@@ -261,19 +256,15 @@ if st.session_state.stage == "IDLE":
 
 
 # 2. EKRAN SKANOWANIA (SCANNING)
-if st.session_state.stage == "SCANNING":
+elif st.session_state.stage == "SCANNING":
     st.empty()
-    # UKŁAD: Kamera po lewej (Większa - 66%), Panel prawy (Pusty 33%)
     col_Cam, col_Empty = st.columns([2, 1])
     
     with col_Empty:
-            # --- PRZYCISK PRZERWIJ (PŁYWAJĄCY) ---
-        # Znacznik dla CSS, żeby namierzył przycisk poniżej
         st.markdown('<div id="fix-stop-btn"></div>', unsafe_allow_html=True)
         if st.button("PRZERWIJ SKANOWANIE", key="stop_btn"):
             st.session_state.stage = "IDLE"
             st.rerun()
-        # DOLNY PANEL INFO
         st.markdown("""
         <div class="bottom-info-box">
             <b>💡 Wskazówki:</b><br>
@@ -286,7 +277,10 @@ if st.session_state.stage == "SCANNING":
         placeholder = st.empty()
         hud_placeholder = st.empty()
         
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(os.path.join(os.getcwd(), "data", "raw", "test_data.mp4"))
+        
+        fw = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        fh = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         internal_stage = "FRONT"
         scan_data = {}
         
@@ -297,13 +291,11 @@ if st.session_state.stage == "SCANNING":
             frame = cv2.flip(frame, 1)
             results = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             
-            # --- STICKY HUD (HTML) ---
             instr_detail = ""
             if internal_stage == "FRONT": instr_detail = "Patrz prosto w kamerę"
             elif internal_stage == "RIGHT": instr_detail = "Pokaż lewy profil"
             elif internal_stage == "LEFT": instr_detail = "Pokaż prawy profil"
             
-            # Powiększone czcionki w HUD
             hud_html = f"""
             <div class="sticky-hud">
                 <div style="color:#888; font-size:0.9rem; letter-spacing:2px; margin-bottom:10px;">ETAP SKANOWANIA</div>
@@ -351,31 +343,34 @@ if st.session_state.stage == "SCANNING":
                         if internal_stage == "FRONT":
                             scan_data["front"] = landmarks
                             internal_stage = "LEFT"
-                        elif internal_stage == "LEFT":
+                        elif internal_stage == "LEFT":  
                             internal_stage = "RIGHT"
                         else:
-                            st.session_state.data = scan_data
-                            st.session_state.data["front"] = landmarks
-                            internal_stage = "DONE"
+                            # HERMETYZACJA: Zapis macierzy z wektorami wymiarowymi klatki
+                            st.session_state.data = {"lms": scan_data["front"], "w": fw, "h": fh}
+                            st.session_state.stage = "RESULT"
                             break
                         del st.session_state.hold
                 else:
                     if 'hold' in st.session_state: del st.session_state.hold
 
             draw_hud(frame, status_text, progress, is_locked)
+            # RENDER: Zapobieganie zniekształceniom obrazu
             placeholder.image(frame, channels="BGR", width='stretch')
             
         cap.release()
-        
-        if internal_stage == "DONE":
-            st.session_state.stage = "RESULT"
-            st.rerun()
+        st.rerun()
 
 # 3. EKRAN WYNIKÓW
-if st.session_state.stage == "RESULT":
+elif st.session_state.stage == "RESULT":
     st.markdown('<h1 class="hero-title">GeoStyle AI</h1>', unsafe_allow_html=True)
-    shape, metrics = engine.get_face_shape(st.session_state.data["front"], gender=st.session_state.gender)
+    
+    d = st.session_state.data
+    
+    # HERMETYZACJA: Przekazanie kluczy rozdzielczości do przestrzeni 4D
+    shape, metrics = engine.get_face_shape(d["lms"], frame_width=d["w"], frame_height=d["h"], gender=st.session_state.gender)
     advice = recommender.get_advice(shape, st.session_state.gender)
+
     col1, col2 = st.columns([1, 2], gap="large")
     with col1:
         st.markdown(f"""
@@ -395,13 +390,13 @@ if st.session_state.stage == "RESULT":
             with fb_c1:
                 # Wymuszenie nadpisania klas Streamlit dla tych mniejszych przycisków
                 st.markdown("<style>div[data-testid='column']:nth-of-type(1) div.stButton > button { font-size: 1.2rem; height: auto; margin-top: 0; }</style>", unsafe_allow_html=True)
-                if st.button("✅ TAK", use_container_width=True):
+                if st.button("✅ TAK", width='stretch'):
                     fb_logger.log_result(shape, st.session_state.gender, metrics, True)
                     st.session_state.feedback_submitted = True
                     st.rerun()
             with fb_c2:
                 st.markdown("<style>div[data-testid='column']:nth-of-type(2) div.stButton > button { font-size: 1.2rem; height: auto; margin-top: 0; }</style>", unsafe_allow_html=True)
-                if st.button("❌ NIE", use_container_width=True):
+                if st.button("❌ NIE", width='stretch'):
                     fb_logger.log_result(shape, st.session_state.gender, metrics, False)
                     st.session_state.feedback_submitted = True
                     st.rerun()
@@ -409,7 +404,7 @@ if st.session_state.stage == "RESULT":
             st.success("Dane zapisane do bufora logowania. System dziękuje za kalibrację.")
             
         st.write("")
-        if st.button("🔄 NOWA ANALIZA", use_container_width=True):
+        if st.button("🔄 NOWA ANALIZA", width='stretch'):
             st.session_state.stage = "IDLE"; st.rerun()
     with col2:
         st.markdown(f"### 🔥 Rekomendacje ({st.session_state.gender})")

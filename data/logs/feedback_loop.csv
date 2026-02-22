@@ -1,2 +1,3 @@
 timestamp,predicted_shape,gender,match_confidence,ratio_hw,ratio_jf,ratio_fw,ratio_fj,is_correct
 2026-02-21 13:08:38,Oblong,Female,0.95,1.24,0.89,0,0,1
+2026-02-22 12:59:58,Oblong,Male,0.92,1.27,0.89,0,0,1

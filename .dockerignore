@@ -1,0 +1,29 @@
+#Kontrola wersji
+
+.git
+.gitignore
+
+#Środowiska wirtualne
+
+venv/
+env/
+.venv/
+
+#Cache i pliki tymczasowe
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.streamlit/
+
+#Pliki systemowe
+
+.DS_Store
+Thumbs.db
+
+# Dane lokalne
+data/raw/*
+!data/raw/test_data.mp4
+data/logs/
